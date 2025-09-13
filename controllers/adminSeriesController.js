@@ -60,7 +60,7 @@ module.exports.getSeriesStreams = async (req, res) => {
 module.exports.createSeriesStream = async (req, res) => {
     try
     {
-        const { name, category_id, stream_icon } = req.body;
+        const { name, category_id, stream_icon, director, cast, release_date, genre, description } = req.body;
 
         console.log("***************************************** \n req.body: ", req.body)
 
@@ -68,7 +68,12 @@ module.exports.createSeriesStream = async (req, res) => {
             name,
             category_id: parseInt(category_id),
             stream_icon: stream_icon || '',
-            added: Date.now()
+            added: Date.now(),
+            director: director || '',
+            cast: cast || '',
+            release_date: release_date || '',
+            genre: genre || '',
+            description: description || ''
         });
 
         console.log(stream)

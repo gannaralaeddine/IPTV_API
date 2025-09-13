@@ -2,6 +2,8 @@ const Episode = require('../models/Episode');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { getVideoDurationInSeconds } = require('get-video-duration');
+
 
 // Multer storage configuration for Episodes
 const episodeStorage = multer.diskStorage({
@@ -51,9 +53,12 @@ module.exports.getEpisodes = async (req, res) => {
 
 module.exports.createEpisode = async (req, res) => {
     try {
-        const { name, series_id, season_id, season_number, episode_number, description, duration } = req.body;
+        const { name, series_id, season_id, season_number, episode_number, description } = req.body;
         const file = req.file ? req.file.originalname : null;
-        
+
+        const duration = await getVideoDurationInSeconds(req.file.path);
+        const  hhmmss = secondsToHms(duration)
+
         if (!file) return res.status(400).json({ error: 'File is required' });
         
         const episode = new Episode({
@@ -64,7 +69,7 @@ module.exports.createEpisode = async (req, res) => {
             episode_number: parseInt(episode_number),
             file,
             description: description || '',
-            duration: duration || ''
+            duration: hhmmss,
         });
         
         await episode.save();
@@ -96,3 +101,12 @@ module.exports.deleteEpisode = async (req, res) => {
 
 // Export the multer middleware for use in routes
 module.exports.episodeUpload = episodeUpload;
+
+
+function secondsToHms(seconds) {
+    seconds = Math.floor(seconds); // remove decimals
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
