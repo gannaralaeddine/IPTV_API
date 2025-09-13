@@ -538,6 +538,41 @@ app.get('/xmltv.php', (req, res) => {
     return res.send(xml);
 });
 
+// Debug endpoint to check episode data
+app.get('/debug/episodes', async (req, res) => {
+    try {
+        const episodes = await Episode.find().lean();
+        const series = await SeriesStream.find().lean();
+        const seasons = await Season.find().lean();
+        
+        res.json({
+            episodes: episodes.map(ep => ({
+                episode_id: ep.episode_id,
+                series_id: ep.series_id,
+                season_id: ep.season_id,
+                season_number: ep.season_number,
+                episode_number: ep.episode_number,
+                name: ep.name,
+                file: ep.file,
+                added: ep.added
+            })),
+            series: series.map(s => ({
+                series_id: s.series_id,
+                name: s.name,
+                category_id: s.category_id
+            })),
+            seasons: seasons.map(s => ({
+                season_id: s.season_id,
+                series_id: s.series_id,
+                season_number: s.season_number,
+                name: s.name
+            }))
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 
 
@@ -755,7 +790,7 @@ app.get('/series/:username/:password/:stream_id.:ext', async (req, res) => {
     console.log(`[series.ext] Request for series_id=${streamId}, ext=${req.params.ext}`);
     // Legacy behavior: serve the first episode of the series
     try {
-        const firstEpisode = await Episode.findOne({ 'episode_id': streamId })
+        const firstEpisode = await Episode.findOne({ 'series_id': streamId })
             .sort({ season_number: 1, episode_number: 1 })
             .lean();
         if (!firstEpisode) {
@@ -846,19 +881,39 @@ app.get('/episode/:username/:password/:episode_id.:ext', async (req, res) => {
     }
 
     const episodeId = parseInt(req.params.episode_id);
+    console.log(`[episode.ext] Request for episode_id=${episodeId}, ext=${req.params.ext}`);
+    
     let episodes = [];
     try {
         episodes = await Episode.find().lean();
+        console.log(`[episode.ext] Found ${episodes.length} episodes in database`);
     } catch (error) {
         console.error("Error fetching episodes:", error);
         return res.status(500).json({ error: "Failed to fetch episodes" });
     }
 
     const episode = episodes.find(e => e.episode_id === episodeId);
-    if (!episode) return res.status(404).send("Episode not found");
+    if (!episode) {
+        console.log(`[episode.ext] Episode not found for episode_id=${episodeId}`);
+        console.log(`[episode.ext] Available episode IDs:`, episodes.map(e => e.episode_id));
+        return res.status(404).send("Episode not found");
+    }
+
+    console.log(`[episode.ext] Found episode:`, { 
+        episode_id: episode.episode_id, 
+        name: episode.name, 
+        file: episode.file,
+        series_id: episode.series_id,
+        season_id: episode.season_id 
+    });
 
     const filePath = path.join(__dirname, "../My DATA/SERIES", episode.file);
-    if (!fs.existsSync(filePath)) return res.status(404).send("File not found");
+    console.log(`[episode.ext] Looking for file at: ${filePath}`);
+    
+    if (!fs.existsSync(filePath)) {
+        console.log(`[episode.ext] File not found on disk at: ${filePath}`);
+        return res.status(404).send("File not found");
+    }
 
     const contentTypeByExt = {
         mp4: 'video/mp4',
@@ -868,6 +923,7 @@ app.get('/episode/:username/:password/:episode_id.:ext', async (req, res) => {
     };
     const requestedExt = (req.params.ext || '').toLowerCase();
     const contentType = contentTypeByExt[requestedExt] || 'video/mp4';
+    console.log(`[episode.ext] Streaming with content-type=${contentType}`);
     streamFile(req, res, filePath, contentType);
 });
 
@@ -878,20 +934,41 @@ app.get('/episode/:username/:password/:episode_id', async (req, res) => {
     }
 
     const episodeId = parseInt(req.params.episode_id);
+    console.log(`[episode] Request for episode_id=${episodeId}`);
+    
     let episodes = [];
     try {
         episodes = await Episode.find().lean();
+        console.log(`[episode] Found ${episodes.length} episodes in database`);
     } catch (error) {
         console.error("Error fetching episodes:", error);
         return res.status(500).json({ error: "Failed to fetch episodes" });
     }
 
     const episode = episodes.find(e => e.episode_id === episodeId);
-    if (!episode) return res.status(404).send("Episode not found");
+    if (!episode) {
+        console.log(`[episode] Episode not found for episode_id=${episodeId}`);
+        console.log(`[episode] Available episode IDs:`, episodes.map(e => e.episode_id));
+        return res.status(404).send("Episode not found");
+    }
+
+    console.log(`[episode] Found episode:`, { 
+        episode_id: episode.episode_id, 
+        name: episode.name, 
+        file: episode.file,
+        series_id: episode.series_id,
+        season_id: episode.season_id 
+    });
 
     const filePath = path.join(__dirname, "../My DATA/SERIES", episode.file);
-    if (!fs.existsSync(filePath)) return res.status(404).send("File not found");
+    console.log(`[episode] Looking for file at: ${filePath}`);
+    
+    if (!fs.existsSync(filePath)) {
+        console.log(`[episode] File not found on disk at: ${filePath}`);
+        return res.status(404).send("File not found");
+    }
 
+    console.log(`[episode] Streaming file: ${episode.file}`);
     streamFile(req, res, filePath);
 });
 
