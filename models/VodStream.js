@@ -18,8 +18,9 @@ const vodStreamSchema = new mongoose.Schema({
     duration:  { type: String, default: '' },
     director: { type: String, default: '' },
     plot:  { type: String, default: '' },
-    release_date: { type: String, default: '' },
-    genre: { type: String, default: '' }
+    releasedate: { type: Date, default: '' },
+    genre: { type: String, default: '' },
+    casts: { type: String, default: '' }
 });
 vodStreamSchema.plugin(AutoIncrement, { inc_field: 'vod_id', start_seq: 1 });
 

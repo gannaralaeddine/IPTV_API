@@ -317,13 +317,16 @@ app.get('/player_api.php', async (req, res) => {
                 const hostHeader = req.get('host') || '';
                 const hostOnly = hostHeader.split(':')[0];
                 const base = `http://${hostOnly}:${PORT}`;
+
+                const options = { year: 'numeric', month: 'short', day: '2-digit' };
+
                 const response = {
                     info: {
                         name: vod.name || 'N/A',
                         title: vod.title || vod.name || 'N/A',
                         year: vod.year || 'N/A',
-                        duration: vod.duration || 'N/A',
-                        plot: vod.description || 'No description',
+                        duration: vod.duration,
+                        plot: vod.plot,
                         stream_type: 'movie',
                         container_extension: vod.container_extension || 'mp4',
                         direct_source: `${base}/movie/${USERNAME}/${PASSWORD}/${vod_id}.mp4`,
@@ -331,12 +334,16 @@ app.get('/player_api.php', async (req, res) => {
                         added: vod.added ? new Date(vod.added).toISOString() : '',
                         category_id: String(vod.category_id || 0),
                         stream_icon: vod.stream_icon || 'N/A',
-                        director: vod.director || 'N/A',
-                        release_date: vod.release_date ? new Date(vod.release_date).toISOString() : '',
-                        genre: vod.genre || 'N/A',
-                        cast: vod.cast || 'N/A',
+                        movie_image: vod.stream_icon,
+                        director: vod.director,
+                        releasedate: (new Date(vod.releasedate)).toLocaleDateString('en-US', options),
+                        genre: vod.genre,
+                        cast: vod.casts,
                     }
                 }
+                console.log("__________________________________________________________________________________");
+                console.log("VOD info response:", JSON.stringify(vod, null, 2));
+                console.log("*******************************************************************************:");
                 console.log("VOD info response:", JSON.stringify(response, null, 2));
                 return res.json(response);
             } catch (err) {
