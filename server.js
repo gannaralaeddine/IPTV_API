@@ -102,7 +102,8 @@ app.options('/player_api.php', (req, res) => {
     res.end();
 });
 
-app.get('/player_api.php', async (req, res) => {
+// Handler function for player_api.php (used by both GET and POST)
+async function handlePlayerApi(req, res) {
     // Set CORS headers for IPTV compatibility
     res.set({
         'Access-Control-Allow-Origin': '*',
@@ -111,59 +112,69 @@ app.get('/player_api.php', async (req, res) => {
         'Access-Control-Expose-Headers': 'ETag, Last-Modified',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
-        'Expires': '0'
+        'Expires': '0',
+        'Content-Type': 'application/json; charset=utf-8'
     });
 
     // Log incoming requests for debugging
-    console.log('Incoming request:', {
+    console.log('Incoming player_api.php request:', {
+        method: req.method,
         url: req.url,
         query: req.query,
         headers: req.headers,
         body: req.body
     });
 
-    if (!auth(req)) return res.json({ user_info: { auth: 0, status: "Blocked" } });
+    // Check authentication
+    const isAuthenticated = auth(req);
+    console.log('Authentication result:', isAuthenticated);
+    
+    if (!isAuthenticated) {
+        console.log('Authentication failed - returning blocked response');
+        return res.status(200).json({ user_info: { auth: 0, status: "Blocked", username: "", password: "", message: "Invalid credentials" } });
+    }
 
-    // const { action, category_id, vod_id } = req.query;
-
+    // Merge query and body parameters (some clients send via POST body)
+    const params = { ...req.query, ...req.body };
+    
     // Handle duplicate action parameters
-    const action = Array.isArray(req.query.action) ? req.query.action[0] : req.query.action;
-    const category_id = Array.isArray(req.query.category_id) ? req.query.category_id[0] : req.query.category_id;
-    const vod_id = Array.isArray(req.query.vod_id) ? req.query.vod_id[0] : req.query.vod_id;
-    const series_id = Array.isArray(req.query.series_id) ? req.query.series_id[0] : req.query.series_id;
+    const action = Array.isArray(params.action) ? params.action[0] : params.action;
+    const category_id = Array.isArray(params.category_id) ? params.category_id[0] : params.category_id;
+    const vod_id = Array.isArray(params.vod_id) ? params.vod_id[0] : params.vod_id;
+    const series_id = Array.isArray(params.series_id) ? params.series_id[0] : params.series_id;
 
     try {
-        // if (!action) {
-        //     const hostHeader = req.get('host') || '';
-        //     const hostOnly = hostHeader.split(':')[0];
-        //     return res.json({ user_info: { username: USERNAME, password: PASSWORD, auth: 1, status: "Active", exp_date: "1769717936" }, server_info: { url: hostOnly, port: PORT, server_protocol: "http" } });
-        // }
-
-        if (!action) {
+        // Default response when no action is specified (authentication/info request)
+        if (!action || action === '' || action === undefined) {
+            console.log('No action specified - returning user_info and server_info');
             const hostHeader = req.get('host') || '';
             const hostOnly = hostHeader.split(':')[0];
-            return res.json({
+            const response = {
                 user_info: {
                     username: USERNAME,
                     password: PASSWORD,
                     auth: 1,
                     status: "Active",
-                    exp_date: "1769717936", // Ensure this is a valid Unix timestamp
+                    exp_date: "1769717936",
                     is_trial: "0",
                     active_cons: "0",
-                    created_at: "1699717936", // Add if required
-                    max_connections: "1" // Add if required
+                    created_at: "1699717936",
+                    max_connections: "1",
+                    allowed_output_formats: ["m3u8", "ts", "rtmp"]
                 },
                 server_info: {
                     url: hostOnly,
-                    port: PORT,
-                    https_port: null, // Add if required
+                    port: PORT.toString(),
+                    https_port: "",
                     server_protocol: "http",
-                    rtmp_port: null, // Add if required
-                    timezone: "GMT", // Add if required
-                    timestamp_now: Math.floor(Date.now() / 1000) // Add if required
+                    rtmp_port: "",
+                    timezone: "UTC",
+                    timestamp_now: Math.floor(Date.now() / 1000),
+                    time_now: new Date().toISOString()
                 }
-            });
+            };
+            console.log('Sending response:', JSON.stringify(response, null, 2));
+            return res.status(200).json(response);
         }
 
         if (action === 'get_live_categories')
@@ -456,12 +467,16 @@ app.get('/player_api.php', async (req, res) => {
             }
         }
 
-        return res.json({ error: "Unknown action" });
+        return res.status(200).json({ error: "Unknown action" });
     } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Server error" });
+        console.error('Error in player_api.php handler:', err);
+        return res.status(500).json({ error: "Server error", message: err.message });
     }
-});
+}
+
+// Register player_api.php endpoint for both GET and POST
+app.get('/player_api.php', handlePlayerApi);
+app.post('/player_api.php', handlePlayerApi);
 
 // Xtream Codes playlist endpoint
 app.get('/get.php', async (req, res) => {
