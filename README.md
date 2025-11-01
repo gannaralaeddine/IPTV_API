@@ -21,6 +21,11 @@ A comprehensive Node.js/Express backend API for IPTV (Internet Protocol Televisi
 - EPG (Electronic Program Guide) support
 - Streaming endpoints for media files
 
+### Xtream IPTV Tested On
+- Starsat SR-2090HD Vega
+- EcoSat HS 1 Plus
+- Samsat HD 1300 Mini
+
 ## 📁 Project Structure
 
 ```
